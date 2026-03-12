@@ -47,7 +47,10 @@ def test_train_bpe():
             )
             for merge_token_1, merge_token_2 in gpt2_reference_merges
         ]
+    #print(merges)
+    #print(reference_merges)
     assert merges == reference_merges
+    #print("merge succeeded")
 
     # Compare the vocab to the expected output vocab
     with open(reference_vocab_path, encoding="utf-8") as f:
@@ -58,6 +61,9 @@ def test_train_bpe():
         }
     # Rather than checking that the vocabs exactly match (since they could
     # have been constructed differently, we'll make sure that the vocab keys and values match)
+    #print(set(reference_vocab.keys()))
+    #print(set(vocab.keys()))
+          
     assert set(vocab.keys()) == set(reference_vocab.keys())
     assert set(vocab.values()) == set(reference_vocab.values())
 

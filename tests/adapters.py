@@ -8,6 +8,7 @@ import numpy.typing as npt
 import torch
 from jaxtyping import Bool, Float, Int
 from torch import Tensor
+from cs336_basics.train_bpe import BasicTokenizer
 
 
 def run_linear(
@@ -50,6 +51,7 @@ def run_embedding(
     Returns:
         Float[Tensor, "... d_model"]: Batch of embeddings returned by your Embedding layer.
     """
+    
 
     raise NotImplementedError
 
@@ -589,4 +591,8 @@ def run_train_bpe(
                 representing that <token1> was merged with <token2>.
                 Merges are ordered by order of creation.
     """
-    raise NotImplementedError
+    bt = BasicTokenizer(special_tokens, vocab_size)
+    vocab, merges = bt.train(input_path)
+    return vocab, merges
+
+    #raise NotImplementedError
