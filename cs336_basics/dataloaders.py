@@ -1,6 +1,7 @@
 import os
-import re
-from .pretokenization_example import find_chunk_boundaries
+import regex as re
+from cs336_basics.utils import find_chunk_boundaries
+from cs336_basics.train_bpe import PATTERN
 
 
 class ChunkIterator():
@@ -39,3 +40,45 @@ class DocIterator():
         while doc in self.special_tokens:
             doc = next(self.documents)
         return doc 
+    
+
+    
+        
+class PreTokenIterator:
+    def __init__(self, file_path, special_tokens, pattern = PATTERN):
+        self.chunk_iterator = ChunkIterator(file_path)
+        self.special_tokens = set(special_tokens)
+        self.pattern = pattern
+        self.split_pattern = "|".join(map(re.escape, self.special_tokens))
+        self._generator_state = self._generate_tokens()
+
+    def _generate_tokens(self):
+        """The logic for nesting is handled here via yield."""
+        for chunk in self.chunk_iterator:
+            docs = re.split(f"({self.split_pattern})", chunk)
+            for doc in docs:
+                if doc in self.special_tokens:
+                    yield doc
+                else:
+                    pre_tokens = re.findall(self.pattern, doc)
+                    for token in pre_tokens:
+                        yield token
+
+    def __iter__(self):
+        return self
+
+    def __next__(self):
+        return next(self._generator_state)
+            
+            
+if __name__ == '__main__':
+    input_path = "data/TinyStoriesV2-GPT4-valid.txt"
+    special_tokens = ["<|endoftext|>"]
+    pt = PreTokenIterator(input_path, special_tokens)
+    i = 0
+    for pts in pt:
+        if i > 20: break
+        print(pts)
+        i += 1
+  
+

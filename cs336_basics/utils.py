@@ -1,6 +1,8 @@
 import os
 from typing import BinaryIO
+#from collections import Counter
 
+PATTERN = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
 def find_chunk_boundaries(
     file: BinaryIO,
@@ -49,4 +51,10 @@ def find_chunk_boundaries(
     return sorted(set(chunk_boundaries))
 
 
+def str_to_bytes(s: str) -> tuple[bytes]:
+    byte_object = s.encode("utf-8")
+    return tuple(bytes([b]) for b in byte_object)
 
+
+
+ 

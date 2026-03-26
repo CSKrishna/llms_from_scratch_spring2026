@@ -1,9 +1,13 @@
-from collections import Counter
-import regex as re
-import time
-from .dataloaders import ChunkIterator, DocIterator
 
-PATTERN = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+from collections import Counter
+import time
+
+import regex as re
+from cs336_basics.utils import PATTERN
+from cs336_basics.dataloaders import ChunkIterator, DocIterator
+#from cs336_basics.utils import PATTERN
+
+
 
 class BasicTokenizer():
     def __init__(self, special_tokens: list[str] | None = None, vocab_size: int = 256, verbose = True):
@@ -59,7 +63,7 @@ class BasicTokenizer():
                 merged_pre_token.append(pre_token[i] + pre_token[i+1])
                 #adjust byte-pair counts for neighbours
                 if i > 0:
-                    key = (pre_token[i-1],pre_token[i]) 
+                    key = (pre_token[i-1], pre_token[i]) 
                     self._adjust_byte_pairs(key, pre_token)  
                     key1 =  (pre_token[i-1], pre_token[i] + pre_token[i+1]) 
                     self.byte_pairs[key1] += self.pre_tokens[pre_token]
@@ -76,11 +80,13 @@ class BasicTokenizer():
             merged_pre_token.append(pre_token[i])  
         return tuple(merged_pre_token)
     
+  
+    
     def _adjust_byte_pairs(self, key, pre_token):
         if key in self.byte_pairs:
             count = self.byte_pairs[key] - self.pre_tokens[pre_token]
             if count > 0: self.byte_pairs[key] = count
-            else: del self.byte_pairs[key]   
+            else: del self.byte_pairs[key]  
 
 
     def train(self, input_path: str):
@@ -94,7 +100,6 @@ class BasicTokenizer():
 
         for i in range(num_merges):
             best_key = max(self.byte_pairs, key=lambda k: (self.byte_pairs[k], k))
-            
             for pre_token in list(self.pre_tokens):
                 merged_pre_token = self._merge(pre_token, best_key)
                 if merged_pre_token != pre_token:
@@ -111,7 +116,7 @@ class BasicTokenizer():
 
 
 if __name__ == '__main__':
-    input_path = "data/TinyStoriesV2-GPT4-train.txt"
+    input_path = "data/TinyStoriesV2-GPT4-valid.txt"
     special_tokens = ["<|endoftext|>"]
     bt = BasicTokenizer(special_tokens, 10000, False)
     t0 = time.time()
