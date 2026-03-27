@@ -14,7 +14,7 @@ class Tokenizer():
         self.vocab: dict[int, bytes] = vocab
         self.special_tokens = special_tokens
         self.pattern =  pattern
-        self.merges_dict = {tup[0] + tup[1]: i for i, tup in enumerate(merges)} #map byte-pair to token index offset by 256
+        self.merges_dict = {tup[0] + tup[1]: i + 256 for i, tup in enumerate(merges)} #map byte-pair to token index offset by 256
         for i in range(256):
             self.merges_dict[self.vocab[i]] = i
         #self.merges_dict.update((val, i) for i, val in enumerate(self.vocab[:256]))
@@ -54,16 +54,16 @@ class Tokenizer():
 
     
     def _encode(self, text: str, l: list[int]):
-        pre_tokens = re.findall(self.pattern, text)
-        for pre_token in pre_tokens:
-            pt_b = str_to_bytes(pre_token)
-            counts = self._count_byte_pairs(pt_b)
-            while len(counts) > 0:
-                pair = min(counts, key=lambda p: self.merges_dict.get(p, float("inf")))
-                if pair[0] + pair[1] in self.merges_dict: pt_b = self._merge(pt_b, pair, counts)
-                else: break
-            pt_b_i = [self.merges_dict[item] for item in pt_b]
-            l.extend(pt_b_i)
+        #pre_tokens = re.findall(self.pattern, text)
+        #for pre_token in pre_tokens:
+        pt_b = str_to_bytes(text)
+        counts = self._count_byte_pairs(pt_b)
+        while len(counts) > 0:
+            pair = min(counts, key=lambda p: self.merges_dict.get(p, float("inf")))
+            if pair[0] + pair[1] in self.merges_dict: pt_b = self._merge(pt_b, pair, counts)
+            else: break
+        pt_b_i = [self.merges_dict[item] for item in pt_b]
+        l.extend(pt_b_i)
             
     def encode_iterable(self, iterable: Iterable[str]) -> Iterator[int]:
         for st in iterable:
@@ -116,6 +116,7 @@ class Tokenizer():
 
 
 if __name__ == '__main__':
+    
     input_path = "data/TinyStoriesV2-GPT4-valid.txt"
     special_tokens = ["<|endoftext|>"]
     bt = BasicTokenizer(special_tokens, 2000, False)
@@ -126,20 +127,5 @@ if __name__ == '__main__':
     tokenizer._encode(text, l)
     print(l)
     
-"""
-more efficient implementation of counts
-while True:
-            counts = self._count_byte_pairs(pt_b)
-            if not counts: break
-            
-            # Find the highest priority merge (lowest rank)
-            pair = min(counts, key=lambda p: self.merge_ranks.get(p, float("inf")))
-            
-            if pair not in self.merge_ranks:
-                break
-                
-            pt_b = self.merge(pt_b, pair)
-            
-        # Convert the resulting units to IDs
-        l.extend(self.vocab[unit] for unit in pt_b)
-"""
+
+    
