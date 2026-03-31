@@ -61,13 +61,16 @@ class Tokenizer():
         pre_tokens = re.findall(self.pattern, text)
         for pre_token in pre_tokens:
             pt_b = str_to_bytes(pre_token)
-            counts = self._count_byte_pairs(pt_b)
-            while len(counts) > 0:
+            #counts = self._count_byte_pairs(pt_b)
+            while True:
+                counts = self._count_byte_pairs(pt_b)
+                if len(counts) < 1: break
                 pair = min(counts, key=lambda p: self.merges_dict.get(p[0] + p[1], float("inf")))
-                if pair[0] + pair[1] in self.merges_dict: pt_b = self._merge(pt_b, pair, counts)
-                else: break
-            pt_b_i = [self.merges_dict[item] for item in pt_b]
-            l.extend(pt_b_i)
+                merged = pair[0] + pair[1]
+                if merged not in self.merges_dict: break
+                pt_b = self._merge(pt_b, pair)
+                #pt_b_i = [self.merges_dict[item] for item in pt_b]
+            l.extend([self.merges_dict[item] for item in pt_b])
             
     def encode_iterable(self, iterable: Iterable[str]) -> Iterator[int]:
         for st in iterable:
@@ -85,26 +88,14 @@ class Tokenizer():
             counts[(pair1, pair2)] += 1
         return counts
     
-    def _merge(self, pre_token: tuple[bytes], pair: tuple[bytes, bytes], counts: dict[tuple[bytes, bytes], int])-> tuple[bytes]:
-        merged_pre_token = [] #list of byte objects, later converted to a tuple of bytes
+    def _merge(self, pre_token: tuple[bytes], pair: tuple[bytes, bytes])-> tuple[bytes]:
+        merged_pre_token: list[bytes] = []#list of byte objects, later converted to a tuple of bytes
         i = 0
         l = len(pre_token) - 1
         while i < l:
             if (pre_token[i], pre_token[i+1]) == pair:
                 merged_pre_token.append(pre_token[i] + pre_token[i+1])
                 key = (pre_token[i], pre_token[i+1]) 
-                counts.pop(key, None) 
-                #adjust byte-pair counts for neighbours
-                if i > 0:
-                    key = (pre_token[i-1],pre_token[i]) 
-                    counts.pop(key, None) 
-                    key1 =  (pre_token[i-1], pre_token[i] + pre_token[i+1]) 
-                    counts[key1] += 1
-                if i < l -1:
-                    key = (pre_token[i+1],pre_token[i+2]) 
-                    counts.pop(key, None) 
-                    key1 =  (pre_token[i] + pre_token[i+1], pre_token[i+2]) 
-                    counts[key1] += 1
                 i += 2
             else:
                 merged_pre_token.append(pre_token[i])
