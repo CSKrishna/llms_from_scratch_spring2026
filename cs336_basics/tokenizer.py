@@ -17,16 +17,17 @@ class Tokenizer():
         self.merges_dict = {tup[0] + tup[1]: i + 256 for i, tup in enumerate(merges)} #map byte-pair to token index offset by 256
         for i in range(256):
             self.merges_dict[self.vocab[i]] = i
-        #self.merges_dict.update((val, i) for i, val in enumerate(self.vocab[:256]))
-        self.base_size = len(vocab)
+        self.base_size = len(self.merges_dict)
+        if special_tokens:
+            self.ordered = sorted(special_tokens, key=len, reverse=True)
+            self.split_pattern = "|".join(map(re.escape, self.ordered))
+
 
     #def from_files(cls, vocab_filepath, merges_filepath, special_tokens: list[str] | None = None):
    
     def decode(self, ids: list[int]) -> str:
         if not ids: return ""
-        b = self.vocab[ids[0]]
-        for indx in ids[1:]:
-            b += self.vocab[indx]
+        b = b"".join(self.vocab[i] for i in ids)
         return b.decode("utf-8", errors="replace")
 
     def encode1(self, text: str) -> list[int]:
@@ -44,26 +45,29 @@ class Tokenizer():
     
     def encode(self, text: str) -> list[int]:
         l = []
-        pre_tokens = re.findall(self.pattern, text)
-        for pre_token in pre_tokens:
-            if self.special_tokens and pre_token in  self.special_tokens:
-                l.extend(self.special_tokens.index(pre_token) + self.base_size)
-            else: self._encode(text, l)
+        if self.special_tokens:
+            parts = re.split(f"({self.split_pattern})", text)
+            for part in parts:
+                if part in self.special_tokens:
+                    l.extend([self.special_tokens.index(part) + self.base_size])
+                else: self._encode(part, l)
+        else:
+            self._encode(text, l)
         return l
 
 
     
     def _encode(self, text: str, l: list[int]):
-        #pre_tokens = re.findall(self.pattern, text)
-        #for pre_token in pre_tokens:
-        pt_b = str_to_bytes(text)
-        counts = self._count_byte_pairs(pt_b)
-        while len(counts) > 0:
-            pair = min(counts, key=lambda p: self.merges_dict.get(p, float("inf")))
-            if pair[0] + pair[1] in self.merges_dict: pt_b = self._merge(pt_b, pair, counts)
-            else: break
-        pt_b_i = [self.merges_dict[item] for item in pt_b]
-        l.extend(pt_b_i)
+        pre_tokens = re.findall(self.pattern, text)
+        for pre_token in pre_tokens:
+            pt_b = str_to_bytes(pre_token)
+            counts = self._count_byte_pairs(pt_b)
+            while len(counts) > 0:
+                pair = min(counts, key=lambda p: self.merges_dict.get(p[0] + p[1], float("inf")))
+                if pair[0] + pair[1] in self.merges_dict: pt_b = self._merge(pt_b, pair, counts)
+                else: break
+            pt_b_i = [self.merges_dict[item] for item in pt_b]
+            l.extend(pt_b_i)
             
     def encode_iterable(self, iterable: Iterable[str]) -> Iterator[int]:
         for st in iterable:
@@ -74,10 +78,6 @@ class Tokenizer():
                 self._encode(st,l)
                 yield next(iter(l))
 
-    def _get_index(self, b: bytes) -> int:
-        return self.merges_dict[b]
-        #if b in self.merges_dict: return self.merges_dict[b] + 256
-        #return b[0]
     
     def _count_byte_pairs(self, b: tuple[bytes]) -> dict[tuple[bytes, bytes], int]:
         counts = Counter()
@@ -116,7 +116,6 @@ class Tokenizer():
 
 
 if __name__ == '__main__':
-    
     input_path = "data/TinyStoriesV2-GPT4-valid.txt"
     special_tokens = ["<|endoftext|>"]
     bt = BasicTokenizer(special_tokens, 2000, False)
