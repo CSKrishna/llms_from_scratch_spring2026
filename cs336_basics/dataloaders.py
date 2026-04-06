@@ -2,18 +2,34 @@ import os
 import regex as re
 from cs336_basics.utils import find_chunk_boundaries
 from cs336_basics.train_bpe import PATTERN
+from typing import Iterable
+from cs336_basics.utils import check_and_get_binary
 
 
 class ChunkIterator():
-    def __init__(self, input_path: str):
-        if not os.path.isfile(input_path):
-            raise FileNotFoundError(f"Path {input_path} does not exist.")
-        
-        self.f = open(input_path, "rb")
-        num_processes = 4
-        self.boundaries = find_chunk_boundaries(self.f, num_processes, b"<|endoftext|>")
+    def __init__(self, input_path: str=None, file_obj=None):
+        # Determine the file source
+        if input_path:
+            if not os.path.isfile(input_path):
+                raise FileNotFoundError(f"Path {input_path} does not exist.")
+            self.f = open(input_path, "rb")
+        elif file_obj:
+            self.f = check_and_get_binary(file_obj)
+        else:
+            raise ValueError("Must provide either input_path or file_obj")
+
+        # Initialize boundaries
+        self.num_processes = 4
+        self.boundaries = find_chunk_boundaries(self.f, self.num_processes, b"<|endoftext|>")
         self.internal_zip = zip(self.boundaries[:-1], self.boundaries[1:])
+
+    @classmethod
+    def from_file(cls, f):
+        # Returns a new instance of ChunkIterator using the file object
+        return cls(file_obj=f)
      
+  
+
 
     def __iter__(self):
         return self
@@ -24,6 +40,9 @@ class ChunkIterator():
         chunk_bytes = self.f.read(end - start)
             
         return chunk_bytes.decode("utf-8", errors="ignore")
+    
+
+  
 
 #splits chunk into documents based on document delimiters
 class DocIterator():

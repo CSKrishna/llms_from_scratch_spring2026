@@ -1,3 +1,4 @@
+import io
 import os
 from typing import BinaryIO
 #from collections import Counter
@@ -57,4 +58,13 @@ def str_to_bytes(s: str) -> tuple[bytes]:
 
 
 
- 
+
+def check_and_get_binary(f):
+    if isinstance(f, io.TextIOWrapper):
+        #print("📍 Status: Text Mode")
+        # Access the underlying binary buffer
+        binary_handle = f.buffer
+        return binary_handle
+    else:
+        #print("📍 Status: Already Binary Mode")
+        return f

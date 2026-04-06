@@ -2,15 +2,16 @@ from collections import Counter
 from typing import Iterable, Iterator
 import regex as re
 from .train_bpe import BasicTokenizer
-from .utils import str_to_bytes
-from .dataloaders import PreTokenIterator
+from cs336_basics.utils import str_to_bytes, find_chunk_boundaries
+#from .dataloaders import PreTokenIterator
+from cs336_basics.dataloaders import ChunkIterator
 
 
 PATTERN = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
 
 
 class Tokenizer():
-    def __init__(self, vocab: dict[int, bytes], merges: list[tuple[bytes, bytes]], special_tokens: list[str] | None = None, pattern = PATTERN):
+    def __init__(self, vocab: dict[int, bytes], merges: list[tuple[bytes, bytes]], special_tokens: list[str] = ["<|endoftext|>"], pattern = PATTERN):
         self.vocab: dict[int, bytes] = vocab
         self.special_tokens = special_tokens
         self.pattern =  pattern
@@ -30,18 +31,6 @@ class Tokenizer():
         b = b"".join(self.vocab[i] for i in ids)
         return b.decode("utf-8", errors="replace")
 
-    def encode1(self, text: str) -> list[int]:
-        """
-        Encode an input text into a sequence of token IDs
-        """
-        self.pre_token_iter = PreTokenIterator(text, self.special_tokens, self.pattern)
-        l = []
-        for doc in self.pre_token_iter:
-            if doc in self.special_tokens:
-                l.extend(self.special_tokens.index(doc) + self.base_size)
-            else:
-                self._encode(text, l)
-        return l
     
     def encode(self, text: str) -> list[int]:
         l = []
@@ -69,18 +58,19 @@ class Tokenizer():
                 merged = pair[0] + pair[1]
                 if merged not in self.merges_dict: break
                 pt_b = self._merge(pt_b, pair)
-                #pt_b_i = [self.merges_dict[item] for item in pt_b]
             l.extend([self.merges_dict[item] for item in pt_b])
             
     def encode_iterable(self, iterable: Iterable[str]) -> Iterator[int]:
-        for st in iterable:
-            if st in self.special_tokens:
-                yield self.special_tokens.index(st) + self.base_size
-            else:
-                l = []
-                self._encode(st,l)
-                yield next(iter(l))
-
+        ci = ChunkIterator.from_file(iterable)
+        for chunk in ci:
+            documents = iter(re.split(f"({self.split_pattern})", chunk))
+            for doc in documents:
+                if doc in self.special_tokens:
+                    yield self.special_tokens.index(doc) + self.base_size
+                else:
+                    l = []
+                    self._encode(doc,l)
+                    yield from l
     
     def _count_byte_pairs(self, b: tuple[bytes]) -> dict[tuple[bytes, bytes], int]:
         counts = Counter()

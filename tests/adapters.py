@@ -562,7 +562,8 @@ def get_tokenizer(
     Returns:
         A BPE tokenizer that uses the provided vocab, merges, and special tokens.
     """
-    tokenizer = Tokenizer(vocab, merges, special_tokens)
+    if special_tokens: tokenizer = Tokenizer(vocab, merges, special_tokens)
+    else: tokenizer = Tokenizer(vocab, merges)
     #def __init__(self, vocab: dict[int, bytes], merges: list[tuple[bytes, bytes]], special_tokens: list[str] | None = None, pattern = PATTERN):
     return tokenizer
 
