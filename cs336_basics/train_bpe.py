@@ -1,5 +1,8 @@
 
+import base64
 from collections import Counter
+import json
+from pathlib import Path
 import time
 
 import regex as re
@@ -87,6 +90,7 @@ class BasicTokenizer():
             count = self.byte_pairs[key] - self.pre_tokens[pre_token]
             if count > 0: self.byte_pairs[key] = count
             else: del self.byte_pairs[key]  
+        
 
 
     def train(self, input_path: str):
@@ -113,6 +117,24 @@ class BasicTokenizer():
             del self.byte_pairs[best_key] 
             self.idx += 1
         return self.vocab, self.merges
+    
+    def _save_vocab(self, path: str | Path):
+        n = len(self.vocab)
+        ordered = [self.vocab[i] for i in range(n)]
+        as_b64 = [base64.b64encode(b).decode("ascii") for b in ordered]
+        Path(path).write_text(json.dumps(as_b64), encoding="utf-8")
+    
+    def _save_merges(self, path: str | Path):
+        payload = [
+             [
+                 base64.b64encode(left).decode("ascii"),
+                 base64.b64encode(right).decode("ascii"),
+             ]
+        for left, right in self.merges]
+        Path(path).write_text(json.dumps(payload), encoding="utf-8")
+        
+    
+
 
 
 if __name__ == '__main__':

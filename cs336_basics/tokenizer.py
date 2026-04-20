@@ -5,6 +5,9 @@ from .train_bpe import BasicTokenizer
 from cs336_basics.utils import str_to_bytes, find_chunk_boundaries
 #from .dataloaders import PreTokenIterator
 from cs336_basics.dataloaders import ChunkIterator
+import base64
+import json
+from pathlib import Path
 
 
 PATTERN = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
@@ -14,7 +17,7 @@ class Tokenizer():
     def __init__(self, vocab: dict[int, bytes], merges: list[tuple[bytes, bytes]], special_tokens: list[str] = ["<|endoftext|>"], pattern = PATTERN):
         self.vocab: dict[int, bytes] = vocab
         self.special_tokens = special_tokens
-        self.pattern =  pattern
+        self.pattern = pattern
         self.merges_dict = {tup[0] + tup[1]: i + 256 for i, tup in enumerate(merges)} #map byte-pair to token index offset by 256
         for i in range(256):
             self.merges_dict[self.vocab[i]] = i
@@ -23,9 +26,6 @@ class Tokenizer():
             self.ordered = sorted(special_tokens, key=len, reverse=True)
             self.split_pattern = "|".join(map(re.escape, self.ordered))
 
-
-    #def from_files(cls, vocab_filepath, merges_filepath, special_tokens: list[str] | None = None):
-   
     def decode(self, ids: list[int]) -> str:
         if not ids: return ""
         b = b"".join(self.vocab[i] for i in ids)
@@ -93,6 +93,38 @@ class Tokenizer():
         if i == l:
             merged_pre_token.append(pre_token[i])  
         return tuple(merged_pre_token)
+    
+    @staticmethod
+    def _load_vocab_from_save(path: str | Path) -> dict[int, bytes]:
+        text = Path(path).read_text(encoding="utf-8")
+        as_b64: list[str] = json.loads(text)
+        return {i: base64.b64decode(s) for i, s in enumerate(as_b64)}
+
+    @staticmethod
+    def _load_merges_from_file(path: str | Path) -> list[tuple[bytes, bytes]]:
+        text = Path(path).read_text(encoding="utf-8")
+        payload: list[list[str]] = json.loads(text)
+        merges: list[tuple[bytes, bytes]] = []
+        for pair in payload:
+            if len(pair) != 2:
+                raise ValueError(f"expected [left_b64, right_b64], got {pair!r}")
+            left_b64, right_b64 = pair
+            merges.append((base64.b64decode(left_b64), base64.b64decode(right_b64)))
+        return merges
+
+    @classmethod
+    def from_files(
+        cls,
+        vocab_filepath: str | Path,
+        merges_filepath: str | Path,
+        special_tokens: list[str] | None = None,
+        pattern: str = PATTERN,
+    ) -> "Tokenizer":
+        if special_tokens is None:
+            special_tokens = ["<|endoftext|>"]
+        vocab = cls._load_vocab_from_save(vocab_filepath)
+        merges = cls._load_merges_from_file(merges_filepath)
+        return cls(vocab, merges, special_tokens=special_tokens, pattern=pattern)
     
 
 
